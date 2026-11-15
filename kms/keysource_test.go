@@ -44,6 +44,21 @@ const (
 // It continues to run all the tests, which can make use of the various `test*`
 // variables.
 func TestMain(m *testing.M) {
+	// Allow an explicitly supplied disposable local-kms server. This still
+	// creates a real test key and runs every integration test.
+	if address := os.Getenv("SOPS_TEST_KMS_ENDPOINT"); address != "" {
+		testKMSServerURL = address
+		client, err := createTestKMSClient(createTestMasterKey(dummyARN))
+		if err != nil {
+			logger.Fatalf("could not create test KMS client: %s", err)
+		}
+		key, err := client.CreateKey(context.Background(), &kms.CreateKeyInput{})
+		if err != nil || key == nil || key.KeyMetadata == nil || key.KeyMetadata.Arn == nil {
+			logger.Fatalf("could not create test KMS key: %v", err)
+		}
+		testKMSARN = *key.KeyMetadata.Arn
+		os.Exit(m.Run())
+	}
 	// Uses a sensible default on Windows (TCP/HTTP) and Linux/MacOS (socket)
 	pool, err := dockertest.NewPool("")
 	if err != nil {
