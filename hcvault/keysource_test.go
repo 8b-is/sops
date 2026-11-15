@@ -34,6 +34,15 @@ var (
 // Vault Transit on the testEnginePath. It then runs all the tests, which can
 // make use of the various `test*` variables.
 func TestMain(m *testing.M) {
+	// An explicitly supplied disposable local server supports environments
+	// without Docker while exercising the same transit integration tests.
+	if address := os.Getenv("SOPS_TEST_VAULT_ADDR"); address != "" {
+		testVaultAddress = address
+		if err := enableVaultTransit(testVaultAddress, testVaultToken, testEnginePath); err != nil {
+			logger.Fatalf("could not enable test Vault transit: %s", err)
+		}
+		os.Exit(m.Run())
+	}
 	// Uses a sensible default on Windows (TCP/HTTP) and Linux/MacOS (socket)
 	pool, err := dockertest.NewPool("")
 	if err != nil {

@@ -681,6 +681,7 @@ func Test_gpgBinary(t *testing.T) {
 }
 
 func Test_gnuPGHome(t *testing.T) {
+	t.Setenv("GNUPGHOME", "")
 	usr, err := user.Current()
 	if err == nil {
 		assert.Equal(t, filepath.Join(usr.HomeDir, ".gnupg"), gnuPGHome(""))
@@ -719,7 +720,16 @@ func Test_shortenFingerprint(t *testing.T) {
 // TODO(hidde): previous tests kept around for now.
 
 func TestPGP(t *testing.T) {
-	key := NewMasterKeyFromFingerprint("FBC7B9E2A4F9289AC0C1D4843D16CEE4A27381B4")
+	gnuPGHome, err := NewGnuPGHome()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = gnuPGHome.Cleanup() })
+	if err := gnuPGHome.ImportFile(mockPrivateKey); err != nil {
+		t.Fatal(err)
+	}
+	key := NewMasterKeyFromFingerprint(mockFingerprint)
+	gnuPGHome.ApplyToMasterKey(key)
 	f := func(x []byte) bool {
 		if len(x) == 0 {
 			return true
